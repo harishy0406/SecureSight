@@ -1,0 +1,93 @@
+# =============================================================================
+# SecureSight — .dockerignore
+# Excludes non-runtime context from the production image.
+# =============================================================================
+
+# ----- VCS -----
+.git
+.gitignore
+.gitattributes
+.github
+
+# ----- Environment -----
+.env
+.env.*
+!.env.example
+
+# ----- Python -----
+__pycache__
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ----- Virtual environments -----
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ----- Test / Quality artifacts -----
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.mypy_cache/
+.ruff_cache/
+.pyright_cache/
+.tox/
+.nox/
+.cache
+
+# ----- IDE -----
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ----- Docs (not needed in image) -----
+docs/
+*.md
+!README.md
+
+# ----- CI -----
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# ----- Tests (not part of runtime) -----
+tests/
+
+# ----- Secrets / Keys (mount at runtime) -----
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+secrets.yml
+
+# ----- ML Models (regenerated in image) -----
+securesight/ml/models/*.pkl
+securesight/ml/models/*.joblib
+
+# ----- Helm (deploy via kubectl/helm, not in image) -----
+k8s/helm/charts/
+k8s/helm/*.tgz
+
+# ----- Docker meta -----
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# ----- Docx working files -----
+SecureSight_PRD_extracted/
+SecureSight_TechStack_extracted/
+PRD_text.txt
+TechStack_text.txt

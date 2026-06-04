@@ -1,0 +1,118 @@
+# =============================================================================
+# SecureSight — Python .gitignore
+# =============================================================================
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ----- Virtual environments -----
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# ----- Test / Coverage -----
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+.cache
+
+# ----- Type / Lint caches -----
+.mypy_cache/
+.ruff_cache/
+.pyright_cache/
+.dmypy.json
+dmypy.json
+
+# ----- Type stubs -----
+*.pyi
+
+# ----- Environment -----
+.env
+.env.local
+.env.*.local
+
+# ----- IDE -----
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ----- Logs -----
+logs/
+*.log
+/_install.log
+celerybeat-schedule
+celerybeat-schedule.db
+
+# ----- Databases -----
+*.db
+*.sqlite
+*.sqlite3
+
+# ----- Docker -----
+docker-compose.override.yml
+
+# ----- Secrets (NEVER commit) -----
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ----- Jupyter -----
+.ipynb_checkpoints/
+
+# ----- ML Models (regenerated at runtime) -----
+securesight/ml/models/*.pkl
+securesight/ml/models/*.joblib
+securesight/ml/models/*.h5
+securesight/ml/models/*.pt
+securesight/ml/models/*.onnx
+!securesight/ml/models/.gitkeep
+
+# ----- Helm -----
+k8s/helm/charts/
+k8s/helm/*.tgz
+
+# ----- Migrations (keep dir + .gitkeep, ignore generated) -----
+migrations/__pycache__/
+!migrations/.gitkeep
+
+# ----- Docx extracts (working artifacts) -----
+SecureSight_PRD_extracted/
+SecureSight_TechStack_extracted/
+PRD_text.txt
+TechStack_text.txt
