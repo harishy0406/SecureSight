@@ -52,6 +52,14 @@ __all__ = [
     "unbind_context",
 ]
 
+_LOG_LEVELS: dict[str, int] = {
+    "CRITICAL": logging.CRITICAL,
+    "ERROR": logging.ERROR,
+    "WARNING": logging.WARNING,
+    "INFO": logging.INFO,
+    "DEBUG": logging.DEBUG,
+    "NOTSET": logging.NOTSET,
+}
 
 
 _NOISY_LOGGERS: tuple[str, ...] = (
