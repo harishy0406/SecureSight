@@ -55,10 +55,7 @@ dmypy.json
 # ----- Type stubs -----
 *.pyi
 
-# ----- Environment -----
-.env
-.env.local
-.env.*.local
+
 
 # ----- IDE -----
 .idea/
