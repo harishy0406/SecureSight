@@ -86,6 +86,7 @@ def _resolve_log_level(settings: Settings) -> int:
     return _LOG_LEVELS.get(str(raw).upper(), logging.INFO)
 
 
+def _resolve_json(settings: Settings) -> bool:
     if getattr(settings, "is_production", False):
         return True
     return bool(getattr(settings, "log_json", False))
