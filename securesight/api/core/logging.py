@@ -195,3 +195,13 @@ def get_request_id() -> str:
     return _REQUEST_ID_VAR.get()
 
 
+def set_request_id(request_id: str | None = None) -> contextvars.Token[str]:
+    value = request_id if request_id is not None else new_request_id()
+    return _REQUEST_ID_VAR.set(value)
+
+
+def reset_request_id(token: contextvars.Token[str]) -> None:
+    try:
+        _REQUEST_ID_VAR.reset(token)
+    except (ValueError, LookupError):
+        pass
