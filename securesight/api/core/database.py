@@ -147,6 +147,8 @@ async def ping_database(timeout: float = 5.0) -> dict[str, Any]:
         return {"ok": False, "error": str(exc) or exc.__class__.__name__}
 
 
+get_session = get_db
+
 __all__ = [
     "NAMING_CONVENTION",
     "Base",
@@ -155,6 +157,7 @@ __all__ = [
     "get_engine",
     "get_session_factory",
     "get_db",
+    "get_session",
     "session_scope",
     "dispose_engine",
     "ping_database",

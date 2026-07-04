@@ -4,8 +4,8 @@ from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select
 
-from securesight.api.core.celery_app import celery_app
-from securesight.api.core.database import async_session_factory
+from securesight.api.workers.celery_app import app as celery_app
+from securesight.api.core.database import get_session_factory, dispose_engine
 from securesight.api.core.logging import get_logger
 from securesight.api.models.alert_history import AlertHistory, AlertStatus
 from securesight.api.models.host import Host, HostStatus
@@ -22,7 +22,7 @@ def cleanup_old_metrics(retention_days: int = 30) -> str:
 
 
 async def _cleanup_old_metrics(retention_days: int) -> str:
-    async with async_session_factory() as session:
+    async with get_session_factory()() as session:
         cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
         result = await session.execute(
             select(Metric).where(Metric.recorded_at < cutoff)
@@ -43,7 +43,7 @@ def cleanup_old_alerts(retention_days: int = 90) -> str:
 
 
 async def _cleanup_old_alerts(retention_days: int) -> str:
-    async with async_session_factory() as session:
+    async with get_session_factory()() as session:
         cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
         result = await session.execute(
             select(AlertHistory).where(
@@ -67,7 +67,7 @@ def check_host_heartbeats(timeout_minutes: int = 5) -> str:
 
 
 async def _check_host_heartbeats(timeout_minutes: int) -> str:
-    async with async_session_factory() as session:
+    async with get_session_factory()() as session:
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)
         result = await session.execute(
             select(Host).where(

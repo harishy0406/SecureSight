@@ -1,0 +1,195 @@
+# =============================================================================
+# SecureSight — Prometheus Alerting Rules
+# =============================================================================
+
+groups:
+  - name: securesight_api
+    interval: 30s
+    rules:
+      - alert: APIHighRequestDuration
+        expr: histogram_quantile(0.95, rate(api_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "API p95 request duration > 2s"
+          description: "The 95th percentile of API request duration is {{ $value }}s."
+
+      - alert: APIHighErrorRate
+        expr: rate(api_errors_total[5m]) / rate(api_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "API error rate > 5%"
+          description: "API error rate is {{ $value | humanizePercentage }}."
+
+      - alert: APIHighResponseSize
+        expr: histogram_quantile(0.99, rate(api_response_size_bytes_bucket[5m])) > 10485760
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "API p99 response size > 10 MB"
+          description: "The 99th percentile response size is {{ $value | humanize1024 }}."
+
+  - name: securesight_infrastructure
+    interval: 30s
+    rules:
+      - alert: NodeHighCPU
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Node CPU > 80%"
+          description: "CPU usage on {{ $labels.instance }} is at {{ $value }}%."
+
+      - alert: NodeHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Node memory > 85%"
+          description: "Memory usage on {{ $labels.instance }} is at {{ $value }}%."
+
+      - alert: NodeDiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Node disk space < 10%"
+          description: "Disk available on {{ $labels.instance }} is {{ $value }}%."
+
+      - alert: NodeDiskSpaceWarning
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Node disk space < 20%"
+          description: "Disk available on {{ $labels.instance }} is {{ $value }}%."
+
+      - alert: NodeNetworkErrors
+        expr: rate(node_network_receive_errors_total[5m]) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Node network error rate elevated"
+          description: "Network receive errors on {{ $labels.instance }} ({{ $labels.device }}): {{ $value }}."
+
+  - name: securesight_database
+    interval: 30s
+    rules:
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL instance {{ $labels.instance }} is unreachable."
+
+      - alert: PostgresHighConnections
+        expr: pg_stat_database_numbackends > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: database
+        annotations:
+          summary: "PostgreSQL connections > 100"
+          description: "Database {{ $labels.datname }} has {{ $value }} active connections."
+
+      - alert: PostgresHighReplicationLag
+        expr: pg_replication_lag_seconds > 30
+        for: 5m
+        labels:
+          severity: critical
+          team: database
+        annotations:
+          summary: "PostgreSQL replication lag > 30s"
+          description: "Replication lag is {{ $value }}s on {{ $labels.instance }}."
+
+  - name: securesight_cache
+    interval: 30s
+    rules:
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance {{ $labels.instance }} is unreachable."
+
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Redis memory > 85%"
+          description: "Redis memory usage is {{ $value }}%."
+
+  - name: securesight_celery
+    interval: 60s
+    rules:
+      - alert: CeleryQueueDepth
+        expr: celery_queue_length > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Celery queue depth > 1000"
+          description: "Queue {{ $labels.queue }} has {{ $value }} pending tasks."
+
+      - alert: CeleryTaskFailed
+        expr: rate(celery_task_failed_total[10m]) > 10
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Celery task failure rate high"
+          description: "Task failures are at {{ $value }} per second."
+
+  - name: securesight_anomaly
+    interval: 60s
+    rules:
+      - alert: AnomalyDetectionHighRate
+        expr: rate(anomaly_events_total[15m]) > 5
+        for: 10m
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "High anomaly detection rate"
+          description: "Detecting {{ $value }} anomalies per second."
+
+  - name: securesight_heartbeat
+    interval: 60s
+    rules:
+      - alert: HostHeartbeatMissing
+        expr: time() - host_last_heartbeat_seconds > 300
+        for: 2m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Host heartbeat missing > 5 min"
+          description: "Host {{ $labels.host }} has not sent a heartbeat in {{ $value }}s."

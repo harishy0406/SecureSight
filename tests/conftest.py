@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from securesight.api.core.config import get_settings
-from securesight.api.core.database import Base, get_session
+from securesight.api.core.database import Base, get_db, get_session
 from securesight.api.main import app
 from securesight.api.models.user import User, UserStatus
 from securesight.api.services.auth_service import AuthService

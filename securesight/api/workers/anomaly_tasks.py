@@ -5,10 +5,10 @@ from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select
 
-from securesight.api.core.celery_app import celery_app
-from securesight.api.core.database import async_session_factory
+from securesight.api.workers.celery_app import app as celery_app
+from securesight.api.core.database import get_session_factory
 from securesight.api.core.logging import get_logger
-from securesight.api.core.redis_client import get_redis_pool
+from securesight.api.core.redis_client import get_redis
 from securesight.api.models.anomaly_event import AnomalyEvent, AnomalySeverity, AnomalyStatus
 from securesight.api.models.host import Host
 from securesight.api.models.metric import Metric
@@ -25,7 +25,7 @@ def run_detection(host_id: int | None = None) -> str:
 
 
 async def _run_detection(host_id: int | None = None) -> str:
-    async with async_session_factory() as session:
+    async with get_session_factory()() as session:
         query = select(Metric).order_by(Metric.recorded_at.desc()).limit(1000)
         if host_id:
             query = query.where(Metric.host_id == host_id)
@@ -66,7 +66,7 @@ async def _run_detection(host_id: int | None = None) -> str:
             created_count += 1
 
         await session.flush()
-        redis = await get_redis_pool()
+            redis = get_redis()
         await redis.publish("anomalies", json.dumps({
             "type": "anomaly.detection_complete",
             "host_id": host_id,
@@ -86,7 +86,7 @@ def cleanup_old_anomalies(retention_days: int = 90) -> str:
 
 
 async def _cleanup_old_anomalies(retention_days: int) -> str:
-    async with async_session_factory() as session:
+    async with get_session_factory()() as session:
         cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
         result = await session.execute(
             select(AnomalyEvent).where(AnomalyEvent.created_at < cutoff)

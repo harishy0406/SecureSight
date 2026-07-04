@@ -5,10 +5,10 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
-from securesight.api.core.celery_app import celery_app
-from securesight.api.core.database import async_session_factory
+from securesight.api.workers.celery_app import app as celery_app
+from securesight.api.core.database import get_session_factory
 from securesight.api.core.logging import get_logger
-from securesight.api.core.redis_client import get_redis_pool
+from securesight.api.core.redis_client import get_redis
 from securesight.api.models.alert_history import AlertHistory, AlertStatus
 from securesight.api.models.alert_rule import AlertRule
 from securesight.api.models.metric import Metric
@@ -24,7 +24,7 @@ def evaluate_alert_rules() -> str:
 
 
 async def _evaluate_alert_rules() -> str:
-    async with async_session_factory() as session:
+    async with get_session_factory()() as session:
         result = await session.execute(select(AlertRule).where(AlertRule.enabled == True))
         rules = result.scalars().all()
 
@@ -76,7 +76,7 @@ async def _evaluate_alert_rules() -> str:
             session.add(alert)
             await session.flush()
 
-            redis = await get_redis_pool()
+            redis = get_redis()
             await redis.publish("alerts", json.dumps({
                 "type": "alert.fired",
                 "rule_id": rule.id,
@@ -101,7 +101,7 @@ def auto_resolve_alerts() -> str:
 
 
 async def _auto_resolve_alerts() -> str:
-    async with async_session_factory() as session:
+    async with get_session_factory()() as session:
         result = await session.execute(
             select(AlertHistory).where(
                 AlertHistory.status == AlertStatus.FIRING,
