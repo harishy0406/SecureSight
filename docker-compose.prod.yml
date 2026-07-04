@@ -1,0 +1,128 @@
+# =============================================================================
+# SecureSight — Docker Compose (Production)
+# Override: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# =============================================================================
+
+version: "3.9"
+
+x-logging: &prod-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+  api:
+    restart: always
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      LOG_LEVEL: INFO
+      LOG_JSON: "true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    command: >
+      sh -c "alembic upgrade head && uvicorn securesight.api.main:app --host 0.0.0.0 --port 8000 --workers 4 --log-config=''"
+    logging: *prod-logging
+
+  worker:
+    restart: always
+    environment:
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      LOG_JSON: "true"
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+    command: celery -A securesight.api.workers.celery_app worker --loglevel=INFO --concurrency=4
+    logging: *prod-logging
+
+  beat:
+    restart: always
+    environment:
+      APP_ENV: production
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    logging: *prod-logging
+
+  postgres:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+    volumes:
+      - pgdata-prod:/var/lib/postgresql/data
+    logging: *prod-logging
+
+  redis:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    logging: *prod-logging
+
+  prometheus:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+    logging: *prod-logging
+
+  grafana:
+    restart: always
+    environment:
+      GF_SERVER_ROOT_URL: https://grafana.securesight.example.com
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    logging: *prod-logging
+
+  alertmanager:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    logging: *prod-logging
+
+  flower:
+    profiles:
+      - monitoring
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    logging: *prod-logging
+
+volumes:
+  pgdata-prod:
+  redisdata:
+  promdata:
+  grafanadata:

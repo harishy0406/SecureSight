@@ -1,0 +1,209 @@
+# =============================================================================
+# SecureSight — Docker Compose (Development)
+# =============================================================================
+
+version: "3.9"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &restart-policy
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *restart-policy
+    image: postgres:15-alpine
+    container_name: securesight-postgres
+    environment:
+      POSTGRES_USER: securesight
+      POSTGRES_PASSWORD: securesight
+      POSTGRES_DB: securesight
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securesight"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  redis:
+    <<: *restart-policy
+    image: redis:7-alpine
+    container_name: securesight-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  api:
+    <<: *restart-policy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: securesight-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://securesight:securesight@postgres:5432/securesight
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      LOG_LEVEL: DEBUG
+      LOG_JSON: "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./securesight:/app/securesight:ro
+      - ./scripts:/app/scripts:ro
+    command: >
+      sh -c "alembic upgrade head && uvicorn securesight.api.main:app --host 0.0.0.0 --port 8000 --reload --log-config=''"
+    logging: *default-logging
+
+  worker:
+    <<: *restart-policy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: securesight-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://securesight:securesight@postgres:5432/securesight
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - ./securesight:/app/securesight:ro
+    command: celery -A securesight.api.workers.celery_app worker --loglevel=INFO --concurrency=2
+    logging: *default-logging
+
+  beat:
+    <<: *restart-policy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: securesight-beat
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - ./securesight:/app/securesight:ro
+    command: celery -A securesight.api.workers.celery_app beat --loglevel=INFO
+    logging: *default-logging
+
+  flower:
+    <<: *restart-policy
+    image: mher/flower:2.0
+    container_name: securesight-flower
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      FLOWER_PORT: 5555
+    ports:
+      - "5555:5555"
+    logging: *default-logging
+
+  prometheus:
+    <<: *restart-policy
+    image: prom/prometheus:v2.50.1
+    container_name: securesight-prometheus
+    depends_on:
+      - api
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./securesight/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./securesight/prometheus/rules:/etc/prometheus/rules:ro
+      - promdata:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    logging: *default-logging
+
+  grafana:
+    <<: *restart-policy
+    image: grafana/grafana:10.4.2
+    container_name: securesight-grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./securesight/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./securesight/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    logging: *default-logging
+
+  alertmanager:
+    <<: *restart-policy
+    image: prom/alertmanager:v0.27.0
+    container_name: securesight-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./securesight/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    logging: *default-logging
+
+  node-exporter:
+    <<: *restart-policy
+    image: prom/node-exporter:v1.7.0
+    container_name: securesight-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    logging: *default-logging
+    pid: "host"
+
+volumes:
+  pgdata:
+  redisdata:
+  promdata:
+  grafanadata:
