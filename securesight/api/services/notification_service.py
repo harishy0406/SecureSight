@@ -6,9 +6,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 
 from securesight.api.core.logging import get_logger
-from securesight.api.core.redis_client import get_redis_pool
 from securesight.api.models.notification_channel import ChannelType, NotificationChannel
 from securesight.api.services.base import BaseService
+from securesight.api.workers.notification_tasks import dispatch_notification
 
 logger = get_logger(__name__)
 
@@ -56,12 +56,19 @@ class NotificationService(BaseService):
         await self.session.flush()
 
     async def send_notification(self, channel: NotificationChannel, message: str, metadata: dict | None = None) -> None:
-        redis = await get_redis_pool()
-        payload = {
-            "channel_id": channel.id,
-            "channel_type": channel.channel_type,
-            "message": message,
-            "metadata": metadata or {},
-        }
-        await redis.publish("notifications", json.dumps(payload))
-        logger.info("notification.published", channel_id=channel.id, channel_type=channel.channel_type)
+        destination = ""
+        config = channel.config or {}
+        if channel.channel_type == ChannelType.EMAIL:
+            destination = config.get("email", "")
+        elif channel.channel_type in (ChannelType.SLACK, ChannelType.WEBHOOK):
+            destination = config.get("webhook_url", "")
+        elif channel.channel_type == ChannelType.TELEGRAM:
+            destination = config.get("chat_id", "")
+            
+        dispatch_notification.delay(
+            channel_type=channel.channel_type.value,
+            destination=destination,
+            message=message,
+            metadata=metadata or {}
+        )
+        logger.info("notification.dispatched", channel_id=channel.id, channel_type=channel.channel_type)
