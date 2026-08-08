@@ -16,6 +16,7 @@ from securesight.api.core.database import dispose_engine, ping_database
 from securesight.api.core.logging import configure_logging
 from securesight.api.core.middleware import install_middleware
 from securesight.api.core.redis_client import close_redis, ping_redis
+from securesight.api.routers import api_router
 
 logger = structlog.get_logger("securesight.api.main")
 
@@ -151,6 +152,7 @@ def _install_routes(app: FastAPI, settings: Settings) -> None:
         return {"message": "pong", "api": "v1"}
 
     app.include_router(api_v1)
+    app.include_router(api_router)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
