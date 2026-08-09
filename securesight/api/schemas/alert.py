@@ -17,6 +17,7 @@ class AlertRuleCreate(BaseModel):
     cooldown_seconds: int = 600
     enabled: bool = True
     config: dict | None = None
+    escalation_policy: dict | None = None
     host_id: int | None = None
 
 
@@ -31,6 +32,7 @@ class AlertRuleUpdate(BaseModel):
     cooldown_seconds: int | None = None
     enabled: bool | None = None
     config: dict | None = None
+    escalation_policy: dict | None = None
     host_id: int | None = None
 
 
@@ -47,6 +49,7 @@ class AlertRulePublic(BaseModel):
     cooldown_seconds: int
     enabled: bool
     config: dict | None
+    escalation_policy: dict | None
     host_id: int | None
     created_at: datetime
     updated_at: datetime | None

@@ -43,6 +43,7 @@ class AlertRule(IdMixin, TimestampMixin, Base):
     cooldown_seconds: Mapped[int] = mapped_column(Integer, default=600)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     config: Mapped[dict | None] = mapped_column(JSON, default=dict)
+    escalation_policy: Mapped[dict | None] = mapped_column(JSON, default=None)
 
     host_id: Mapped[int | None] = mapped_column(ForeignKey("hosts.id", ondelete="CASCADE"), index=True)
 
