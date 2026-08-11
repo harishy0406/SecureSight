@@ -7,6 +7,8 @@ from celery.signals import worker_process_init
 
 from securesight.api.core.config import get_settings, reset_settings_cache
 from securesight.api.core.logging import configure_logging, get_logger
+from securesight.api.core.tracing import configure_tracing
+from opentelemetry.instrumentation.celery import CeleryInstrumentor
 
 
 _DEFAULT_BROKER_URL = "redis://localhost:6379/1"
@@ -74,6 +76,10 @@ def _on_worker_process_init(sender: Any, **kwargs: Any) -> None:
         broker_url=getattr(settings, "celery_broker_url", _DEFAULT_BROKER_URL),
         timezone=getattr(settings, "celery_timezone", _DEFAULT_TIMEZONE),
     )
+    
+    app_name = getattr(settings, "app_name", "securesight-worker")
+    configure_tracing(app=None, service_name=app_name)
+    CeleryInstrumentor().instrument()
 
 
 app: Celery = _create_celery_app()

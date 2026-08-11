@@ -7,7 +7,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 
-def configure_tracing(app: FastAPI, service_name: str = "securesight-api") -> None:
+def configure_tracing(app: FastAPI | None = None, service_name: str = "securesight-api") -> None:
     if os.environ.get("ENABLE_TRACING", "false").lower() != "true":
         return
 
@@ -24,4 +24,5 @@ def configure_tracing(app: FastAPI, service_name: str = "securesight-api") -> No
 
     trace.set_tracer_provider(provider)
 
-    FastAPIInstrumentor.instrument_app(app)
+    if app is not None:
+        FastAPIInstrumentor.instrument_app(app)
